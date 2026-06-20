@@ -104,7 +104,7 @@ func Load() (Config, error) {
 				ProactiveMax: envFloat("PROB_PROACTIVE_MAX", 0.15),
 			},
 		},
-		Storage:  StorageConfig{Path: envString("DATABASE_URL", "data/gofer.json")},
+		Storage:  StorageConfig{Path: envString("STORAGE_PATH", envString("DATABASE_URL", "data/state.json"))},
 		LogLevel: parseLogLevel(envString("LOG_LEVEL", "info")),
 	}
 

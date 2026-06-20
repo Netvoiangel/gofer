@@ -1,6 +1,9 @@
 .git
 .env
 data
+*.log
 bin
 tmp
+dist
+coverage.out
 .DS_Store

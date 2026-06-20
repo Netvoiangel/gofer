@@ -1,5 +1,9 @@
 .env
-data/*.json
+/bot
+data/
+*.log
+coverage.out
 bin/
 tmp/
+dist/
 .DS_Store

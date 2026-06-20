@@ -10,7 +10,7 @@
 - Антиспам-лимиты: cooldown, максимум ответов в час, дневной бюджет токенов, максимум инициативных сообщений.
 - Краткосрочный контекст последних сообщений и простое резюме тем.
 - Настройки чата, статистика и события в локальном JSON-хранилище.
-- Docker Compose запуск.
+- Podman Compose запуск.
 
 ## Важные условия Telegram
 
@@ -24,7 +24,7 @@
 4. Запустите:
 
 ```text
-docker compose up -d --build
+podman compose up -d --build
 ```
 
 Локальный запуск без Docker:
@@ -39,8 +39,8 @@ go run ./cmd/bot
 TELEGRAM_BOT_TOKEN=
 POLZA_API_KEY=
 POLZA_BASE_URL=https://api.polza.ai/api/v1
-POLZA_MODEL=openai/gpt-4o-mini
-DATABASE_URL=data/gofer.json
+POLZA_MODEL=
+STORAGE_PATH=data/state.json
 LOG_LEVEL=info
 ```
 
@@ -64,10 +64,117 @@ LOG_LEVEL=info
 
 ## Хранилище
 
-Для MVP используется `data/gofer.json`. Оно хранит настройки чатов, последние сообщения, резюме контекста, события и статистику. Тексты сообщений можно не сохранять, если установить:
+Для MVP используется JSON-файл из `STORAGE_PATH`; по умолчанию это `data/state.json`. В контейнере файл лежит внутри `/app/data`, а директория `./data` подключена volume в `compose.yml`, поэтому состояние сохраняется между перезапусками. Хранилище содержит настройки чатов, последние сообщения, резюме контекста, события и статистику. Тексты сообщений можно не сохранять, если установить:
 
 ```env
 BOT_STORE_TEXT=false
+```
+
+## Деплой через Podman Compose
+
+### Подготовка сервера
+
+```bash
+sudo mkdir -p /opt/gofer
+sudo chown -R $USER:$USER /opt/gofer
+cd /opt/gofer
+```
+
+Проверьте, какой compose-инструмент установлен:
+
+```bash
+which podman
+which podman-compose
+```
+
+Основной вариант в этом проекте — `podman compose`. Если на сервере установлен только `podman-compose`, используйте те же команды, заменив `podman compose` на `podman-compose`.
+
+### Загрузка проекта
+
+Через git:
+
+```bash
+git clone <repo-url> .
+```
+
+Или загрузите архив/scp в `/opt/gofer` и распакуйте файлы проекта туда.
+
+### Настройка окружения
+
+```bash
+cp .env.example .env
+nano .env
+chmod 600 .env
+mkdir -p data
+```
+
+Минимально заполните:
+
+```env
+TELEGRAM_BOT_TOKEN=
+POLZA_API_KEY=
+POLZA_BASE_URL=https://api.polza.ai/api/v1
+POLZA_MODEL=
+STORAGE_PATH=data/state.json
+LOG_LEVEL=info
+BOT_MIN_DELAY_SECONDS=180
+BOT_MAX_REPLIES_PER_HOUR=10
+BOT_MAX_PROACTIVE_PER_DAY=5
+POLZA_SILENT_ON_MISSING=true
+```
+
+### Запуск
+
+```bash
+podman compose build
+podman compose up -d
+podman compose logs -f
+```
+
+### Проверка
+
+```bash
+podman ps
+podman logs -f gofer-bot
+```
+
+Проверьте, что файл состояния появился в `data/state.json`:
+
+```bash
+ls -la data
+```
+
+### Остановка
+
+```bash
+podman compose down
+```
+
+### Обновление
+
+```bash
+cd /opt/gofer
+git pull
+podman compose up -d --build
+podman logs --tail=100 gofer-bot
+```
+
+### Автозапуск через systemd user service
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp deploy/systemd/gofer.service ~/.config/systemd/user/gofer.service
+systemctl --user daemon-reload
+systemctl --user enable --now gofer.service
+sudo loginctl enable-linger $USER
+systemctl --user status gofer.service
+```
+
+Если используется `podman-compose`, замените в `~/.config/systemd/user/gofer.service` строки запуска:
+
+```ini
+ExecStart=/usr/bin/podman-compose up -d
+ExecStop=/usr/bin/podman-compose down
 ```
 
 ## Дальнейшие улучшения
@@ -88,14 +195,14 @@ go mod tidy
 gofmt -w .
 go test ./...
 go vet ./...
-docker compose build
+podman compose build
 ```
 
 Проверка запуска:
 
 ```bash
-docker compose up -d
-docker compose logs -f
+podman compose up -d
+podman compose logs -f
 ```
 
 Ручная проверка в Telegram-группе:
@@ -112,4 +219,4 @@ docker compose logs -f
 - в логах видна причина ответа или пропуска;
 - после перезапуска контейнера настройки чата сохраняются.
 
-Проект не считается принятым, пока не пройдены `go test ./...`, `go vet ./...` и Docker-запуск.
+Проект не считается принятым, пока не пройдены `go test ./...`, `go vet ./...` и запуск через Podman Compose.
