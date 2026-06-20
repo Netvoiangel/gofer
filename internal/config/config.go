@@ -18,19 +18,19 @@ type Config struct {
 }
 
 type TelegramConfig struct {
-	Token          string
+	Token         string
 	PollTimeout   int
 	AllowedUserID map[int64]struct{}
 }
 
 type PolzaConfig struct {
-	APIKey         string
-	BaseURL        string
-	Model          string
-	Temperature   float64
-	MaxTokens      int
-	Timeout        time.Duration
-	RetryCount     int
+	APIKey          string
+	BaseURL         string
+	Model           string
+	Temperature     float64
+	MaxTokens       int
+	Timeout         time.Duration
+	RetryCount      int
 	SilentOnMissing bool
 }
 
@@ -67,18 +67,18 @@ type StorageConfig struct {
 func Load() (Config, error) {
 	cfg := Config{
 		Telegram: TelegramConfig{
-			Token:          strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")),
+			Token:         strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")),
 			PollTimeout:   envInt("TELEGRAM_POLL_TIMEOUT", 25),
 			AllowedUserID: parseInt64Set(os.Getenv("ADMIN_USER_IDS")),
 		},
 		Polza: PolzaConfig{
-			APIKey:         strings.TrimSpace(os.Getenv("POLZA_API_KEY")),
-			BaseURL:        envString("POLZA_BASE_URL", "https://api.polza.ai/api/v1"),
-			Model:          envString("POLZA_MODEL", "openai/gpt-4o-mini"),
-			Temperature:   envFloat("POLZA_TEMPERATURE", 0.7),
-			MaxTokens:      envInt("POLZA_MAX_TOKENS", 400),
-			Timeout:        time.Duration(envInt("POLZA_TIMEOUT_SECONDS", 20)) * time.Second,
-			RetryCount:     envInt("POLZA_RETRY_COUNT", 2),
+			APIKey:          strings.TrimSpace(os.Getenv("POLZA_API_KEY")),
+			BaseURL:         envString("POLZA_BASE_URL", "https://api.polza.ai/api/v1"),
+			Model:           envString("POLZA_MODEL", "openai/gpt-4o-mini"),
+			Temperature:     envFloat("POLZA_TEMPERATURE", 0.7),
+			MaxTokens:       envInt("POLZA_MAX_TOKENS", 400),
+			Timeout:         time.Duration(envInt("POLZA_TIMEOUT_SECONDS", 20)) * time.Second,
+			RetryCount:      envInt("POLZA_RETRY_COUNT", 2),
 			SilentOnMissing: envBool("POLZA_SILENT_ON_MISSING", true),
 		},
 		Bot: BotConfig{
@@ -104,7 +104,7 @@ func Load() (Config, error) {
 				ProactiveMax: envFloat("PROB_PROACTIVE_MAX", 0.15),
 			},
 		},
-		Storage: StorageConfig{Path: envString("DATABASE_URL", "data/gofer.json")},
+		Storage:  StorageConfig{Path: envString("DATABASE_URL", "data/gofer.json")},
 		LogLevel: parseLogLevel(envString("LOG_LEVEL", "info")),
 	}
 

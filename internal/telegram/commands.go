@@ -11,9 +11,9 @@ import (
 )
 
 type CommandHandler struct {
-	client         *Client
-	store          *storage.Store
-	allowedUserID  map[int64]struct{}
+	client        *Client
+	store         *storage.Store
+	allowedUserID map[int64]struct{}
 }
 
 func NewCommandHandler(client *Client, store *storage.Store, allowedUserID map[int64]struct{}) *CommandHandler {

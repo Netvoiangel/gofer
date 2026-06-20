@@ -55,7 +55,7 @@ func TestContextLimitKeepsRecentMessages(t *testing.T) {
 func newContextTestStore(t *testing.T) *storage.Store {
 	t.Helper()
 	store, err := storage.New(t.TempDir()+"/state.json", config.BotConfig{
-		DefaultMode:        "funny",
+		DefaultMode:       "funny",
 		MinDelay:          3 * time.Minute,
 		MaxRepliesPerHour: 10,
 		ContextLimit:      10,

@@ -20,11 +20,11 @@ type Store struct {
 }
 
 type state struct {
-	Settings map[int64]ChatSettings   `json:"settings"`
-	Summaries map[int64]ChatSummary    `json:"summaries"`
+	Settings  map[int64]ChatSettings    `json:"settings"`
+	Summaries map[int64]ChatSummary     `json:"summaries"`
 	Messages  map[int64][]MessageRecord `json:"messages"`
-	Stats     map[int64]Stats          `json:"stats"`
-	Events    []EventLog               `json:"events"`
+	Stats     map[int64]Stats           `json:"stats"`
+	Events    []EventLog                `json:"events"`
 }
 
 func New(path string, defaults config.BotConfig) (*Store, error) {
@@ -32,7 +32,7 @@ func New(path string, defaults config.BotConfig) (*Store, error) {
 		path:     path,
 		defaults: defaults,
 		state: state{
-			Settings: make(map[int64]ChatSettings),
+			Settings:  make(map[int64]ChatSettings),
 			Summaries: make(map[int64]ChatSummary),
 			Messages:  make(map[int64][]MessageRecord),
 			Stats:     make(map[int64]Stats),

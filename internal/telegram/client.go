@@ -96,8 +96,8 @@ func (c *Client) GetMe(ctx context.Context) (*User, error) {
 	}
 
 	var response struct {
-		OK          bool  `json:"ok"`
-		Result      *User `json:"result,omitempty"`
+		OK          bool   `json:"ok"`
+		Result      *User  `json:"result,omitempty"`
 		Description string `json:"description,omitempty"`
 	}
 	if err := c.do(req, &response); err != nil {

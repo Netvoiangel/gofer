@@ -10,7 +10,7 @@ import (
 func TestSettingsPersistAfterReload(t *testing.T) {
 	path := t.TempDir() + "/state.json"
 	defaults := config.BotConfig{
-		DefaultMode:        "funny",
+		DefaultMode:       "funny",
 		MinDelay:          3 * time.Minute,
 		MaxRepliesPerHour: 10,
 		ContextLimit:      50,

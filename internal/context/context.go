@@ -95,11 +95,11 @@ func detectTopics(messages []storage.MessageRecord) []string {
 	seen := make(map[string]struct{})
 	var topics []string
 	keywords := map[string][]string{
-		"Go":       {"go", "golang", "goroutine", "channel", "context", "interface"},
-		"деплой":   {"deploy", "деплой", "docker", "kubernetes", "k8s", "prod"},
-		"ошибки":   {"bug", "баг", "ошибка", "panic", "exception", "trace"},
-		"серверы":  {"server", "сервер", "backend", "api", "http", "grpc"},
-		"ревью":    {"review", "ревью", "pull request", "merge request"},
+		"Go":      {"go", "golang", "goroutine", "channel", "context", "interface"},
+		"деплой":  {"deploy", "деплой", "docker", "kubernetes", "k8s", "prod"},
+		"ошибки":  {"bug", "баг", "ошибка", "panic", "exception", "trace"},
+		"серверы": {"server", "сервер", "backend", "api", "http", "grpc"},
+		"ревью":   {"review", "ревью", "pull request", "merge request"},
 	}
 	for _, message := range messages {
 		lower := strings.ToLower(message.Text)

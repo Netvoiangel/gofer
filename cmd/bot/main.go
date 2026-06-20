@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	contextx "github.com/w6itec6apel/gofer/internal/context"
 	"github.com/w6itec6apel/gofer/internal/config"
+	contextx "github.com/w6itec6apel/gofer/internal/context"
 	"github.com/w6itec6apel/gofer/internal/decision"
 	"github.com/w6itec6apel/gofer/internal/llm"
 	"github.com/w6itec6apel/gofer/internal/persona"
