@@ -1,0 +1,5 @@
+.env
+data/*.json
+bin/
+tmp/
+.DS_Store
