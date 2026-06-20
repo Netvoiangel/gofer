@@ -84,7 +84,7 @@ func Load() (Config, error) {
 		Bot: BotConfig{
 			Username:           strings.TrimPrefix(envString("BOT_USERNAME", ""), "@"),
 			NameTriggers:       envList("BOT_NAME_TRIGGERS", []string{"гофер", "gopher", "бот"}),
-			DefaultMode:        envString("BOT_DEFAULT_MODE", "funny"),
+			DefaultMode:        envString("BOT_DEFAULT_MODE", "angry"),
 			MinDelay:           time.Duration(envInt("BOT_MIN_DELAY_SECONDS", 180)) * time.Second,
 			MaxRepliesPerHour:  envInt("BOT_MAX_REPLIES_PER_HOUR", 10),
 			MaxProactivePerDay: envInt("BOT_MAX_PROACTIVE_PER_DAY", 5),

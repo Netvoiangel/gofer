@@ -71,11 +71,11 @@ func (h *CommandHandler) Handle(ctx context.Context, message Message) (string, b
 		return fmt.Sprintf("Инициативные реакции выключены на %d мин.", minutes), true
 	case "/gopher_mode":
 		if len(args) == 0 {
-			return "Укажите режим: calm, funny или tech.", true
+			return "Укажите режим: calm, funny, tech или angry.", true
 		}
 		mode := strings.ToLower(args[0])
-		if mode != "calm" && mode != "funny" && mode != "tech" {
-			return "Не знаю такой режим. Доступны: calm, funny, tech.", true
+		if mode != "calm" && mode != "funny" && mode != "tech" && mode != "angry" {
+			return "Не знаю такой режим. Доступны: calm, funny, tech, angry.", true
 		}
 		_ = h.store.UpdateSettings(message.Chat.ID, func(settings *storage.ChatSettings) {
 			settings.Mode = mode
@@ -115,7 +115,7 @@ func helpText() string {
 		"/gopher_on — включить активность",
 		"/gopher_off — выключить активность",
 		"/gopher_silent 60 — замолчать на 60 минут",
-		"/gopher_mode calm|funny|tech — сменить стиль",
+		"/gopher_mode calm|funny|tech|angry — сменить стиль",
 		"/gopher_stats — статистика",
 		"/gopher_budget — текущие лимиты",
 		"/gopher_reset_context — очистить краткосрочный контекст",
