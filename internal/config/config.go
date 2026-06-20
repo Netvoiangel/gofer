@@ -38,7 +38,19 @@ type BotConfig struct {
 	Username            string
 	NameTriggers        []string
 	DefaultMode         string
+	DevMode             bool
+	Chattiness          string
+	ProfanityLevel      string
 	MinDelay            time.Duration
+	CommandCooldown     time.Duration
+	DirectCooldown      time.Duration
+	AmbientCooldown     time.Duration
+	LocalCooldown       time.Duration
+	ProactiveCooldown   time.Duration
+	SoftDirectWindow    time.Duration
+	Debounce            time.Duration
+	BatchWindow         time.Duration
+	BatchMaxMessages    int
 	MaxRepliesPerHour   int
 	MaxProactivePerDay  int
 	DailyTokenLimit     int
@@ -65,6 +77,7 @@ type StorageConfig struct {
 }
 
 func Load() (Config, error) {
+	devMode := envBool("BOT_DEV_MODE", false)
 	cfg := Config{
 		Telegram: TelegramConfig{
 			Token:         strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")),
@@ -85,9 +98,21 @@ func Load() (Config, error) {
 			Username:           strings.TrimPrefix(envString("BOT_USERNAME", ""), "@"),
 			NameTriggers:       envList("BOT_NAME_TRIGGERS", []string{"гофер", "gopher", "бот"}),
 			DefaultMode:        envString("BOT_DEFAULT_MODE", "angry"),
-			MinDelay:           time.Duration(envInt("BOT_MIN_DELAY_SECONDS", 180)) * time.Second,
-			MaxRepliesPerHour:  envInt("BOT_MAX_REPLIES_PER_HOUR", 10),
-			MaxProactivePerDay: envInt("BOT_MAX_PROACTIVE_PER_DAY", 5),
+			DevMode:            devMode,
+			Chattiness:         envString("BOT_CHATTINESS", "high"),
+			ProfanityLevel:     envString("BOT_PROFANITY_LEVEL", "medium"),
+			MinDelay:           time.Duration(envInt("BOT_MIN_DELAY_SECONDS", 35)) * time.Second,
+			CommandCooldown:    time.Duration(envInt("BOT_COMMAND_COOLDOWN_SECONDS", 3)) * time.Second,
+			DirectCooldown:     time.Duration(envInt("BOT_DIRECT_COOLDOWN_SECONDS", 15)) * time.Second,
+			AmbientCooldown:    time.Duration(envInt("BOT_AMBIENT_LLM_COOLDOWN_SECONDS", envInt("BOT_MIN_DELAY_SECONDS", 35))) * time.Second,
+			LocalCooldown:      time.Duration(envInt("BOT_LOCAL_REACTION_COOLDOWN_SECONDS", 20)) * time.Second,
+			ProactiveCooldown:  time.Duration(envInt("BOT_PROACTIVE_COOLDOWN_SECONDS", 1200)) * time.Second,
+			SoftDirectWindow:   time.Duration(envInt("BOT_SOFT_DIRECT_WINDOW_SECONDS", 300)) * time.Second,
+			Debounce:           time.Duration(envInt("BOT_DEBOUNCE_SECONDS", 8)) * time.Second,
+			BatchWindow:        time.Duration(envInt("BOT_BATCH_WINDOW_SECONDS", 20)) * time.Second,
+			BatchMaxMessages:   envInt("BOT_BATCH_MAX_MESSAGES", 5),
+			MaxRepliesPerHour:  envInt("BOT_MAX_REPLIES_PER_HOUR", 40),
+			MaxProactivePerDay: envInt("BOT_MAX_PROACTIVE_PER_DAY", 8),
 			DailyTokenLimit:    envInt("BOT_DAILY_TOKEN_LIMIT", 20000),
 			ContextLimit:       envInt("BOT_CONTEXT_LIMIT", 50),
 			MaxContextTokens:   envInt("BOT_MAX_CONTEXT_TOKENS", 1200),
@@ -95,17 +120,33 @@ func Load() (Config, error) {
 			ProactiveIdleAfter: time.Duration(envInt("BOT_PROACTIVE_IDLE_AFTER_SECONDS", 1800)) * time.Second,
 			PrivacyStoreText:   envBool("BOT_STORE_TEXT", true),
 			ResponseProbability: ProbabilityConfig{
-				Question:     envFloat("PROB_QUESTION", 0.40),
-				GoTopic:      envFloat("PROB_GO_TOPIC", 0.50),
-				TechTopic:    envFloat("PROB_TECH_TOPIC", 0.25),
-				HumorTrigger: envFloat("PROB_HUMOR_TRIGGER", 0.10),
-				SmallTalk:    envFloat("PROB_SMALL_TALK", 0.02),
-				ProactiveMin: envFloat("PROB_PROACTIVE_MIN", 0.05),
-				ProactiveMax: envFloat("PROB_PROACTIVE_MAX", 0.15),
+				Question:     envFloat("PROB_QUESTION", 0.75),
+				GoTopic:      envFloat("PROB_GO_TOPIC", 0.85),
+				TechTopic:    envFloat("PROB_TECH_TOPIC", 0.65),
+				HumorTrigger: envFloat("PROB_HUMOR_TRIGGER", 0.45),
+				SmallTalk:    envFloat("PROB_SMALL_TALK", 0.25),
+				ProactiveMin: envFloat("PROB_PROACTIVE_MIN", 0.08),
+				ProactiveMax: envFloat("PROB_PROACTIVE_MAX", 0.20),
 			},
 		},
 		Storage:  StorageConfig{Path: envString("STORAGE_PATH", envString("DATABASE_URL", "data/state.json"))},
 		LogLevel: parseLogLevel(envString("LOG_LEVEL", "info")),
+	}
+
+	if cfg.Bot.DevMode {
+		cfg.Bot.Chattiness = "insane"
+		cfg.Bot.CommandCooldown = time.Second
+		cfg.Bot.DirectCooldown = 3 * time.Second
+		cfg.Bot.AmbientCooldown = 8 * time.Second
+		cfg.Bot.LocalCooldown = 3 * time.Second
+		cfg.Bot.ProactiveCooldown = 300 * time.Second
+		cfg.Bot.Debounce = 4 * time.Second
+		cfg.Bot.MaxRepliesPerHour = 300
+		cfg.Bot.ResponseProbability.Question = 1
+		cfg.Bot.ResponseProbability.GoTopic = 1
+		cfg.Bot.ResponseProbability.TechTopic = 0.95
+		cfg.Bot.ResponseProbability.HumorTrigger = 0.90
+		cfg.Bot.ResponseProbability.SmallTalk = 0.70
 	}
 
 	if cfg.Telegram.Token == "" {

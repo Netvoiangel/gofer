@@ -54,6 +54,13 @@ func (s *Store) Settings(chatID int64) ChatSettings {
 		settings = s.defaultSettings(chatID)
 		s.state.Settings[chatID] = settings
 		_ = s.saveLocked()
+		return settings
+	}
+	updated := s.applyRuntimeDefaults(settings)
+	if updated != settings {
+		settings = updated
+		s.state.Settings[chatID] = settings
+		_ = s.saveLocked()
 	}
 	return settings
 }
@@ -67,9 +74,22 @@ func (s *Store) UpdateSettings(chatID int64, mutate func(*ChatSettings)) error {
 		settings = s.defaultSettings(chatID)
 	}
 	mutate(&settings)
+	settings = s.applyRuntimeDefaults(settings)
 	settings.UpdatedAt = time.Now().UTC()
 	s.state.Settings[chatID] = settings
 	return s.saveLocked()
+}
+
+func (s *Store) applyRuntimeDefaults(settings ChatSettings) ChatSettings {
+	settings.MinDelaySeconds = int(s.defaults.MinDelay.Seconds())
+	settings.MaxRepliesPerHour = s.defaults.MaxRepliesPerHour
+	settings.MaxProactivePerDay = s.defaults.MaxProactivePerDay
+	settings.DailyTokenLimit = s.defaults.DailyTokenLimit
+	settings.StoreText = s.defaults.PrivacyStoreText
+	if settings.Mode == "" {
+		settings.Mode = s.defaults.DefaultMode
+	}
+	return settings
 }
 
 func (s *Store) AddMessage(message MessageRecord, limit int) error {
@@ -131,6 +151,50 @@ func (s *Store) CountBotMessagesSince(chatID int64, since time.Time) int {
 		if message.IsBot && message.Time.After(since) {
 			count++
 		}
+	}
+	return count
+}
+
+func (s *Store) LastAnsweredEventAt(chatID int64, eventTypes ...string) time.Time {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	wanted := make(map[string]struct{}, len(eventTypes))
+	for _, eventType := range eventTypes {
+		wanted[eventType] = struct{}{}
+	}
+	for i := len(s.state.Events) - 1; i >= 0; i-- {
+		event := s.state.Events[i]
+		if event.ChatID != chatID || !event.Answered {
+			continue
+		}
+		if len(wanted) > 0 {
+			if _, ok := wanted[event.EventType]; !ok {
+				continue
+			}
+		}
+		return event.Time
+	}
+	return time.Time{}
+}
+
+func (s *Store) CountAnsweredEventsSince(chatID int64, since time.Time, excludedEventTypes ...string) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	excluded := make(map[string]struct{}, len(excludedEventTypes))
+	for _, eventType := range excludedEventTypes {
+		excluded[eventType] = struct{}{}
+	}
+	count := 0
+	for _, event := range s.state.Events {
+		if event.ChatID != chatID || !event.Answered || !event.Time.After(since) {
+			continue
+		}
+		if _, ok := excluded[event.EventType]; ok {
+			continue
+		}
+		count++
 	}
 	return count
 }

@@ -8,6 +8,7 @@
 - Polza.AI через OpenAI-совместимый `chat/completions`.
 - Команды `/gopher_help`, `/gopher_on`, `/gopher_off`, `/gopher_silent`, `/gopher_mode`, `/gopher_stats`, `/gopher_budget`, `/gopher_reset_context`.
 - Антиспам-лимиты: cooldown, максимум ответов в час, дневной бюджет токенов, максимум инициативных сообщений.
+- Локальные короткие реакции без LLM для фраз вроде `пиздец`, `ого`, `понял`, `ахахах`, `ghbdtn`.
 - Краткосрочный контекст последних сообщений и простое резюме тем.
 - Настройки чата, статистика и события в локальном JSON-хранилище.
 - Podman Compose запуск.
@@ -45,6 +46,48 @@ LOG_LEVEL=info
 ```
 
 Поведение и лимиты настраиваются через переменные `BOT_*` и `PROB_*` из `.env.example`.
+
+## Разговорность
+
+У Гофера есть два типа реакций:
+
+- локальная короткая реплика без LLM — почти бесплатная реакция на короткие эмоциональные сообщения;
+- нормальный LLM-ответ — для прямых обращений, reply, вопросов и технических тем.
+
+Рекомендуемый разговорный профиль:
+
+```env
+BOT_DEFAULT_MODE=angry
+BOT_DEV_MODE=false
+BOT_CHATTINESS=high
+BOT_PROFANITY_LEVEL=medium
+BOT_MIN_DELAY_SECONDS=35
+BOT_COMMAND_COOLDOWN_SECONDS=3
+BOT_DIRECT_COOLDOWN_SECONDS=15
+BOT_AMBIENT_LLM_COOLDOWN_SECONDS=45
+BOT_LOCAL_REACTION_COOLDOWN_SECONDS=20
+BOT_PROACTIVE_COOLDOWN_SECONDS=1200
+BOT_DEBOUNCE_SECONDS=8
+BOT_BATCH_WINDOW_SECONDS=20
+BOT_BATCH_MAX_MESSAGES=5
+BOT_MAX_REPLIES_PER_HOUR=40
+BOT_MAX_PROACTIVE_PER_DAY=8
+PROB_QUESTION=0.75
+PROB_GO_TOPIC=0.85
+PROB_TECH_TOPIC=0.65
+PROB_HUMOR_TRIGGER=0.45
+PROB_SMALL_TALK=0.25
+```
+
+`BOT_PROFANITY_LEVEL` управляет матом как стилем ругани на баги, деплой, код, легаси и хаос. Бот не должен травить конкретных людей, угрожать или использовать дискриминационные оскорбления.
+
+Для теста можно включить максимально разговорный профиль:
+
+```env
+BOT_DEV_MODE=true
+```
+
+Он временно выставляет `BOT_CHATTINESS=insane`, короткие cooldown, debounce `4` сек и лимит `300` ответов в час.
 
 ## Команды
 
@@ -117,9 +160,20 @@ POLZA_BASE_URL=https://api.polza.ai/api/v1
 POLZA_MODEL=
 STORAGE_PATH=data/state.json
 LOG_LEVEL=info
-BOT_MIN_DELAY_SECONDS=180
-BOT_MAX_REPLIES_PER_HOUR=10
-BOT_MAX_PROACTIVE_PER_DAY=5
+BOT_DEV_MODE=false
+BOT_CHATTINESS=high
+BOT_PROFANITY_LEVEL=medium
+BOT_MIN_DELAY_SECONDS=35
+BOT_COMMAND_COOLDOWN_SECONDS=3
+BOT_DIRECT_COOLDOWN_SECONDS=15
+BOT_AMBIENT_LLM_COOLDOWN_SECONDS=45
+BOT_LOCAL_REACTION_COOLDOWN_SECONDS=20
+BOT_PROACTIVE_COOLDOWN_SECONDS=1200
+BOT_DEBOUNCE_SECONDS=8
+BOT_BATCH_WINDOW_SECONDS=20
+BOT_BATCH_MAX_MESSAGES=5
+BOT_MAX_REPLIES_PER_HOUR=40
+BOT_MAX_PROACTIVE_PER_DAY=8
 POLZA_SILENT_ON_MISSING=true
 ```
 

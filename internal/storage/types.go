@@ -35,6 +35,7 @@ type EventLog struct {
 	OutputTokens int       `json:"output_tokens,omitempty"`
 	Error        string    `json:"error,omitempty"`
 	ErrorSource  string    `json:"error_source,omitempty"`
+	ResponseKind string    `json:"response_kind,omitempty"`
 }
 
 type Stats struct {

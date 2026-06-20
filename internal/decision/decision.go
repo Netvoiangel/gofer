@@ -15,12 +15,14 @@ type EventType string
 const (
 	EventDirectMention EventType = "DIRECT_MENTION"
 	EventReplyToBot    EventType = "REPLY_TO_BOT"
+	EventSoftDirect    EventType = "SOFT_DIRECT"
 	EventCommand       EventType = "COMMAND"
 	EventNameMention   EventType = "NAME_MENTION"
 	EventQuestion      EventType = "QUESTION"
 	EventTechTopic     EventType = "TECH_TOPIC"
 	EventHumorTrigger  EventType = "HUMOR_TRIGGER"
 	EventIdleProactive EventType = "IDLE_PROACTIVE"
+	EventLocalReaction EventType = "LOCAL_REACTION"
 	EventSmallTalk     EventType = "SMALL_TALK"
 )
 
@@ -34,10 +36,13 @@ type Event struct {
 }
 
 type Decision struct {
-	Respond     bool
-	Reason      string
-	Event       Event
-	Probability float64
+	Respond          bool
+	Reason           string
+	Event            Event
+	Probability      float64
+	Roll             float64
+	CooldownChannel  string
+	RemainingSeconds int
 }
 
 type Engine struct {
@@ -51,29 +56,52 @@ func NewEngine(cfg config.BotConfig, store *storage.Store) *Engine {
 
 func (e *Engine) Decide(message telegram.Message, settings storage.ChatSettings) Decision {
 	event := e.Classify(message)
+	return e.DecideEvent(event, settings)
+}
+
+func (e *Engine) DecideEvent(event Event, settings storage.ChatSettings) Decision {
 	if event.Text == "" {
 		return Decision{Respond: false, Reason: "empty_text", Event: event}
 	}
 	if event.Type == EventCommand {
-		return Decision{Respond: true, Reason: "command", Event: event, Probability: 1}
+		allowed, reason := e.withinCommandLimits(event)
+		if !allowed {
+			return Decision{Respond: false, Reason: reason, Event: event, CooldownChannel: "command"}
+		}
+		return Decision{Respond: true, Reason: "command", Event: event, Probability: 1, CooldownChannel: "command"}
 	}
 	if !settings.Enabled {
 		return Decision{Respond: false, Reason: "bot_disabled", Event: event}
 	}
-	allowed, reason := e.withinLimits(message.Chat.ID, settings)
+	allowed, reason := e.withinLimits(event, settings)
 	if !allowed {
-		return Decision{Respond: false, Reason: reason, Event: event}
+		return Decision{Respond: false, Reason: reason, Event: event, CooldownChannel: e.cooldownChannel(event.Type), RemainingSeconds: e.remainingCooldown(event, settings)}
 	}
 
-	if event.Type == EventDirectMention || event.Type == EventReplyToBot || event.Type == EventNameMention {
-		return Decision{Respond: true, Reason: "direct_trigger", Event: event, Probability: 1}
+	if event.Type == EventDirectMention || event.Type == EventReplyToBot || event.Type == EventNameMention || event.Type == EventSoftDirect {
+		return Decision{Respond: true, Reason: "direct_trigger", Event: event, Probability: 1, CooldownChannel: e.cooldownChannel(event.Type)}
 	}
 
 	probability := e.probability(event)
-	if rand.Float64() <= probability {
-		return Decision{Respond: true, Reason: "probability_passed", Event: event, Probability: probability}
+	roll := rand.Float64()
+	if roll <= probability {
+		return Decision{Respond: true, Reason: "probability_passed", Event: event, Probability: probability, Roll: roll, CooldownChannel: e.cooldownChannel(event.Type)}
 	}
-	return Decision{Respond: false, Reason: "probability_skipped", Event: event, Probability: probability}
+	return Decision{Respond: false, Reason: "probability_skipped", Event: event, Probability: probability, Roll: roll, CooldownChannel: e.cooldownChannel(event.Type)}
+}
+
+func (e *Engine) CanLocalReact(chatID int64, settings storage.ChatSettings) (bool, string) {
+	if !settings.Enabled {
+		return false, "bot_disabled"
+	}
+	if e.store.CountAnsweredEventsSince(chatID, time.Now().Add(-time.Hour), string(EventCommand)) >= settings.MaxRepliesPerHour {
+		return false, "hourly_reply_limit"
+	}
+	last := e.store.LastAnsweredEventAt(chatID, string(EventLocalReaction))
+	if !last.IsZero() && time.Since(last) < e.cfg.LocalCooldown {
+		return false, "local_cooldown"
+	}
+	return true, ""
 }
 
 func (e *Engine) Classify(message telegram.Message) Event {
@@ -102,6 +130,10 @@ func (e *Engine) Classify(message telegram.Message) Event {
 		event.Type = EventDirectMention
 		return event
 	}
+	if e.isSoftDirect(message.Chat.ID, lower) {
+		event.Type = EventSoftDirect
+		return event
+	}
 	for _, trigger := range e.cfg.NameTriggers {
 		if strings.Contains(lower, strings.ToLower(trigger)) {
 			event.Type = EventNameMention
@@ -127,6 +159,26 @@ func (e *Engine) Classify(message telegram.Message) Event {
 	return event
 }
 
+func (e *Engine) isSoftDirect(chatID int64, lowerText string) bool {
+	lastBot := e.store.LastBotMessageAt(chatID)
+	if lastBot.IsZero() || time.Since(lastBot) > e.cfg.SoftDirectWindow {
+		return false
+	}
+	triggers := []string{
+		"ты будешь отвечать",
+		"ты тут",
+		"ты живой",
+		"ответь",
+		"че молчишь",
+		"чё молчишь",
+		"бот молчит",
+		"гофер молчит",
+		"алло",
+		"проснись",
+	}
+	return containsAny(lowerText, triggers)
+}
+
 func (e *Engine) DecideProactive(chatID int64, settings storage.ChatSettings) Decision {
 	event := Event{Type: EventIdleProactive, ChatID: chatID, Text: "Напиши короткое инициативное сообщение по недавнему контексту чата."}
 	if !settings.Enabled || !settings.ProactiveEnabled {
@@ -140,7 +192,7 @@ func (e *Engine) DecideProactive(chatID int64, settings storage.ChatSettings) De
 	if lastMessage.IsZero() || time.Since(lastMessage) < e.cfg.ProactiveIdleAfter {
 		return Decision{Respond: false, Reason: "chat_not_idle", Event: event}
 	}
-	allowed, reason := e.withinLimits(chatID, settings)
+	allowed, reason := e.withinProactiveLimits(chatID, settings)
 	if !allowed {
 		return Decision{Respond: false, Reason: reason, Event: event}
 	}
@@ -159,19 +211,93 @@ func (e *Engine) DecideProactive(chatID int64, settings storage.ChatSettings) De
 	return Decision{Respond: false, Reason: "idle_probability_skipped", Event: event, Probability: probability}
 }
 
-func (e *Engine) withinLimits(chatID int64, settings storage.ChatSettings) (bool, string) {
-	lastBot := e.store.LastBotMessageAt(chatID)
-	minDelay := time.Duration(settings.MinDelaySeconds) * time.Second
-	if !lastBot.IsZero() && time.Since(lastBot) < minDelay {
+func (e *Engine) withinLimits(event Event, settings storage.ChatSettings) (bool, string) {
+	if e.store.CountAnsweredEventsSince(event.ChatID, time.Now().Add(-time.Hour), string(EventCommand)) >= settings.MaxRepliesPerHour {
+		return false, "hourly_reply_limit"
+	}
+	if e.store.TokenUsageSince(event.ChatID, beginningOfDay(time.Now())) >= settings.DailyTokenLimit {
+		return false, "daily_token_limit"
+	}
+	cooldown := e.cooldownFor(event.Type, settings)
+	if cooldown <= 0 {
+		return true, ""
+	}
+	last := e.store.LastAnsweredEventAt(event.ChatID, cooldownEventTypes(event.Type)...)
+	if !last.IsZero() && time.Since(last) < cooldown {
 		return false, "cooldown"
 	}
-	if e.store.CountBotMessagesSince(chatID, time.Now().Add(-time.Hour)) >= settings.MaxRepliesPerHour {
+	return true, ""
+}
+
+func (e *Engine) withinCommandLimits(event Event) (bool, string) {
+	last := e.store.LastAnsweredEventAt(event.ChatID, string(EventCommand))
+	if !last.IsZero() && time.Since(last) < e.cfg.CommandCooldown {
+		return false, "command_cooldown"
+	}
+	return true, ""
+}
+
+func (e *Engine) withinProactiveLimits(chatID int64, settings storage.ChatSettings) (bool, string) {
+	if e.store.CountAnsweredEventsSince(chatID, time.Now().Add(-time.Hour), string(EventCommand)) >= settings.MaxRepliesPerHour {
 		return false, "hourly_reply_limit"
 	}
 	if e.store.TokenUsageSince(chatID, beginningOfDay(time.Now())) >= settings.DailyTokenLimit {
 		return false, "daily_token_limit"
 	}
+	last := e.store.LastAnsweredEventAt(chatID, string(EventIdleProactive))
+	if !last.IsZero() && time.Since(last) < e.cfg.ProactiveCooldown {
+		return false, "proactive_cooldown"
+	}
 	return true, ""
+}
+
+func (e *Engine) cooldownFor(eventType EventType, settings storage.ChatSettings) time.Duration {
+	switch eventType {
+	case EventDirectMention, EventReplyToBot, EventNameMention, EventSoftDirect:
+		return e.cfg.DirectCooldown
+	default:
+		if e.cfg.AmbientCooldown > 0 {
+			return e.cfg.AmbientCooldown
+		}
+		return time.Duration(settings.MinDelaySeconds) * time.Second
+	}
+}
+
+func cooldownEventTypes(eventType EventType) []string {
+	switch eventType {
+	case EventDirectMention, EventReplyToBot, EventNameMention, EventSoftDirect:
+		return []string{string(EventDirectMention), string(EventReplyToBot), string(EventNameMention), string(EventSoftDirect)}
+	default:
+		return []string{string(EventQuestion), string(EventTechTopic), string(EventHumorTrigger), string(EventSmallTalk)}
+	}
+}
+
+func (e *Engine) cooldownChannel(eventType EventType) string {
+	switch eventType {
+	case EventCommand:
+		return "command"
+	case EventDirectMention, EventReplyToBot, EventNameMention, EventSoftDirect:
+		return "direct"
+	case EventLocalReaction:
+		return "local_reaction"
+	case EventIdleProactive:
+		return "proactive"
+	default:
+		return "ambient_llm"
+	}
+}
+
+func (e *Engine) remainingCooldown(event Event, settings storage.ChatSettings) int {
+	cooldown := e.cooldownFor(event.Type, settings)
+	last := e.store.LastAnsweredEventAt(event.ChatID, cooldownEventTypes(event.Type)...)
+	if cooldown <= 0 || last.IsZero() {
+		return 0
+	}
+	remaining := cooldown - time.Since(last)
+	if remaining <= 0 {
+		return 0
+	}
+	return int(remaining.Seconds()) + 1
 }
 
 func (e *Engine) probability(event Event) float64 {

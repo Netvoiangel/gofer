@@ -7,17 +7,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/w6itec6apel/gofer/internal/config"
 	"github.com/w6itec6apel/gofer/internal/storage"
 )
 
 type CommandHandler struct {
 	client        *Client
 	store         *storage.Store
+	botConfig     config.BotConfig
 	allowedUserID map[int64]struct{}
 }
 
-func NewCommandHandler(client *Client, store *storage.Store, allowedUserID map[int64]struct{}) *CommandHandler {
-	return &CommandHandler{client: client, store: store, allowedUserID: allowedUserID}
+func NewCommandHandler(client *Client, store *storage.Store, botConfig config.BotConfig, allowedUserID map[int64]struct{}) *CommandHandler {
+	return &CommandHandler{client: client, store: store, botConfig: botConfig, allowedUserID: allowedUserID}
 }
 
 func (h *CommandHandler) Handle(ctx context.Context, message Message) (string, bool) {
@@ -35,8 +37,19 @@ func (h *CommandHandler) Handle(ctx context.Context, message Message) (string, b
 			stats.IncomingMessages, stats.BotReplies, stats.ProactiveMessages, stats.SkippedEvents, stats.InputTokens, stats.OutputTokens), true
 	case "/gopher_budget":
 		settings := h.store.Settings(message.Chat.ID)
-		return fmt.Sprintf("Лимиты: максимум %d ответов в час, %d инициативных в день, дневной бюджет %d токенов, пауза %d сек.",
-			settings.MaxRepliesPerHour, settings.MaxProactivePerDay, settings.DailyTokenLimit, settings.MinDelaySeconds), true
+		return fmt.Sprintf("Режим: %s\nРазговорчивость: %s\nМат: %s\n\nCooldown:\n- command: %d сек\n- direct/reply: %d сек\n- ambient LLM: %d сек\n- local reaction: %d сек\n- proactive: %d сек\n- debounce: %d сек\n\nЛимиты:\n- максимум ответов в час: %d\n- инициативных в день: %d\n- дневной бюджет токенов: %d",
+			settings.Mode,
+			h.botConfig.Chattiness,
+			h.botConfig.ProfanityLevel,
+			int(h.botConfig.CommandCooldown.Seconds()),
+			int(h.botConfig.DirectCooldown.Seconds()),
+			int(h.botConfig.AmbientCooldown.Seconds()),
+			int(h.botConfig.LocalCooldown.Seconds()),
+			int(h.botConfig.ProactiveCooldown.Seconds()),
+			int(h.botConfig.Debounce.Seconds()),
+			settings.MaxRepliesPerHour,
+			settings.MaxProactivePerDay,
+			settings.DailyTokenLimit), true
 	}
 
 	admin, err := h.isAdmin(ctx, message)
