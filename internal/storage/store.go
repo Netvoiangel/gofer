@@ -171,8 +171,7 @@ func (s *Store) LogEvent(event EventLog) error {
 	}
 
 	stats := s.state.Stats[event.ChatID]
-	switch {
-	case event.EventType != "":
+	if event.EventType != "IDLE_PROACTIVE" {
 		stats.IncomingMessages++
 	}
 	if event.Answered {
@@ -185,10 +184,11 @@ func (s *Store) LogEvent(event EventLog) error {
 	}
 	stats.InputTokens += event.InputTokens
 	stats.OutputTokens += event.OutputTokens
-	if event.Error != "" {
-		if event.Model != "" {
-			stats.PolzaAPIErrors++
-		}
+	switch event.ErrorSource {
+	case "telegram":
+		stats.TelegramAPIErrors++
+	case "polza":
+		stats.PolzaAPIErrors++
 	}
 	s.state.Stats[event.ChatID] = stats
 	return s.saveLocked()
@@ -277,12 +277,34 @@ func (s *Store) load() error {
 }
 
 func (s *Store) saveLocked() error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	dir := filepath.Dir(s.path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	content, err := json.MarshalIndent(s.state, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.path, content, 0o600)
+
+	tmp, err := os.CreateTemp(dir, ".gofer-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		_ = os.Remove(tmpName)
+	}()
+
+	if _, err := tmp.Write(content); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, s.path)
 }

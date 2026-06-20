@@ -60,17 +60,13 @@ func (e *Engine) Decide(message telegram.Message, settings storage.ChatSettings)
 	if !settings.Enabled {
 		return Decision{Respond: false, Reason: "bot_disabled", Event: event}
 	}
-	if settings.SilentUntil.After(time.Now()) && event.Type != EventDirectMention && event.Type != EventReplyToBot && event.Type != EventNameMention {
-		return Decision{Respond: false, Reason: "silent_mode", Event: event}
+	allowed, reason := e.withinLimits(message.Chat.ID, settings)
+	if !allowed {
+		return Decision{Respond: false, Reason: reason, Event: event}
 	}
 
 	if event.Type == EventDirectMention || event.Type == EventReplyToBot || event.Type == EventNameMention {
 		return Decision{Respond: true, Reason: "direct_trigger", Event: event, Probability: 1}
-	}
-
-	allowed, reason := e.withinLimits(message.Chat.ID, settings)
-	if !allowed {
-		return Decision{Respond: false, Reason: reason, Event: event}
 	}
 
 	probability := e.probability(event)

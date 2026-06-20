@@ -32,6 +32,8 @@ type app struct {
 }
 
 func main() {
+	config.LoadDotEnv(".env")
+
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("config error", "error", err)
@@ -137,6 +139,7 @@ func (a *app) handleMessage(ctx context.Context, message telegram.Message) {
 		return
 	}
 	if !decisionResult.Respond {
+		a.logger.Info("message skipped", "chat_id", message.Chat.ID, "event", decisionResult.Event.Type, "reason", decisionResult.Reason)
 		_ = a.store.LogEvent(storage.EventLog{
 			Time:      time.Now().UTC(),
 			ChatID:    message.Chat.ID,
@@ -172,6 +175,7 @@ func (a *app) handleCommand(ctx context.Context, message telegram.Message, event
 	}
 	if err != nil {
 		log.Error = err.Error()
+		log.ErrorSource = "telegram"
 		a.logger.Error("command response failed", "error", err)
 	} else {
 		a.saveBotMessage(message.Chat.ID, sent, response)
@@ -198,6 +202,7 @@ func (a *app) respondWithLLM(ctx context.Context, result decision.Decision, sett
 	}
 	if err != nil {
 		eventLog.Error = err.Error()
+		eventLog.ErrorSource = "polza"
 		a.logger.Error("llm completion failed", "error", err)
 		_ = a.store.LogEvent(eventLog)
 		return
@@ -217,6 +222,7 @@ func (a *app) respondWithLLM(ctx context.Context, result decision.Decision, sett
 	eventLog.Answered = err == nil
 	if err != nil {
 		eventLog.Error = err.Error()
+		eventLog.ErrorSource = "telegram"
 		a.logger.Error("telegram send failed", "error", err)
 		_ = a.store.LogEvent(eventLog)
 		return
@@ -232,13 +238,7 @@ func (a *app) runProactive(ctx context.Context) {
 		settings := a.store.Settings(chatID)
 		result := a.decider.DecideProactive(chatID, settings)
 		if !result.Respond {
-			_ = a.store.LogEvent(storage.EventLog{
-				Time:      time.Now().UTC(),
-				ChatID:    chatID,
-				EventType: string(result.Event.Type),
-				Answered:  false,
-				Reason:    result.Reason,
-			})
+			a.logger.Debug("proactive skipped", "chat_id", chatID, "reason", result.Reason)
 			continue
 		}
 		a.respondWithLLM(ctx, result, settings, 0)

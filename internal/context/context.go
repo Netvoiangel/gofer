@@ -2,6 +2,7 @@ package contextx
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -38,6 +39,7 @@ func (m *Manager) Build(chatID int64) string {
 
 	builder.WriteString("Последние сообщения:\n")
 	tokenBudget := m.maxContextTokens
+	selected := make([]string, 0, len(messages))
 	for i := len(messages) - 1; i >= 0; i-- {
 		message := messages[i]
 		if strings.TrimSpace(message.Text) == "" {
@@ -52,6 +54,10 @@ func (m *Manager) Build(chatID int64) string {
 			break
 		}
 		tokenBudget -= roughTokens
+		selected = append(selected, line)
+	}
+	slices.Reverse(selected)
+	for _, line := range selected {
 		builder.WriteString(line)
 		builder.WriteString("\n")
 	}
