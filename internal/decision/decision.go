@@ -169,8 +169,15 @@ func (e *Engine) isSoftDirect(chatID int64, lowerText string) bool {
 		"ты тут",
 		"ты живой",
 		"ответь",
+		"ответь мне",
 		"че молчишь",
 		"чё молчишь",
+		"че с ним",
+		"чё с ним",
+		"что с ним",
+		"не хочет отвечать",
+		"не хочет",
+		"не молчи",
 		"бот молчит",
 		"гофер молчит",
 		"алло",
@@ -180,7 +187,7 @@ func (e *Engine) isSoftDirect(chatID int64, lowerText string) bool {
 }
 
 func (e *Engine) DecideProactive(chatID int64, settings storage.ChatSettings) Decision {
-	event := Event{Type: EventIdleProactive, ChatID: chatID, Text: "Напиши короткое инициативное сообщение по недавнему контексту чата."}
+	event := Event{Type: EventIdleProactive, ChatID: chatID, Text: "Напиши одну короткую злую реплику по свежему контексту чата. Не начинай со слов 'слушайте', 'давайте', 'соберёмся'."}
 	if !settings.Enabled || !settings.ProactiveEnabled {
 		return Decision{Respond: false, Reason: "proactive_disabled", Event: event}
 	}

@@ -35,6 +35,16 @@ func TestCandidateRejectsLongMessage(t *testing.T) {
 	}
 }
 
+func TestCandidateForDismissiveLongMessage(t *testing.T) {
+	candidate, ok := CandidateFor("а не пойти ли тебе нахуй? ты вообще полезное сделал?", "medium")
+	if !ok {
+		t.Fatalf("expected dismissive local reaction")
+	}
+	if candidate.Topic != "dismiss_short" {
+		t.Fatalf("expected dismiss_short topic, got %s", candidate.Topic)
+	}
+}
+
 func TestLocalReactionChanceForChattyModes(t *testing.T) {
 	if got := chanceFor("high"); got < 0.60 {
 		t.Fatalf("expected high chance >= 0.60, got %f", got)

@@ -367,7 +367,7 @@ func (a *app) respondWithLLM(ctx context.Context, result decision.Decision, sett
 }
 
 func (a *app) tryLocalReaction(ctx context.Context, message telegram.Message, event decision.Event, settings storage.ChatSettings) bool {
-	if event.Type == decision.EventDirectMention || event.Type == decision.EventReplyToBot || event.Type == decision.EventNameMention || event.Type == decision.EventQuestion {
+	if event.Type == decision.EventDirectMention || event.Type == decision.EventReplyToBot || event.Type == decision.EventNameMention {
 		return false
 	}
 

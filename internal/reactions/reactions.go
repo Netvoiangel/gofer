@@ -30,36 +30,71 @@ func Match(text string, chattiness string, profanityLevel string) (Candidate, bo
 func CandidateFor(text string, profanityLevel string) (Candidate, bool) {
 	normalized := normalize(text)
 	if normalized == "" || len([]rune(normalized)) > 40 {
+		if candidate, ok := containedCandidate(normalized, profanityLevel); ok {
+			return candidate, true
+		}
 		return Candidate{}, false
 	}
 
 	reply, topic, ok := replyFor(normalized, profanityLevel)
 	if !ok {
+		if candidate, ok := containedCandidate(normalized, profanityLevel); ok {
+			return candidate, true
+		}
 		return Candidate{}, false
 	}
 	return Candidate{Text: reply, Topic: topic, Trigger: normalized}, true
 }
 
+func containedCandidate(text string, profanityLevel string) (Candidate, bool) {
+	for _, phrase := range []string{
+		"иди нахуй",
+		"пойти ли тебе нахуй",
+		"пошел нахуй",
+		"пошёл нахуй",
+		"не отвлекай",
+		"не выебывайся",
+		"заткнись",
+		"хуесос",
+		"дегенерат",
+		"дебил",
+	} {
+		if strings.Contains(text, phrase) {
+			reply, topic, ok := replyFor(phrase, profanityLevel)
+			if ok {
+				return Candidate{Text: reply, Topic: topic, Trigger: phrase}, true
+			}
+		}
+	}
+	return Candidate{}, false
+}
+
 func replyFor(text string, profanityLevel string) (string, string, bool) {
 	switch text {
-	case "супер", "супер!", "отлично", "кайф", "заебись":
-		return "Супер — это когда прод не дымится. Всё остальное пока оптимизм.", "positive_short", true
+	case "супер", "супер!", "отлично", "кайф", "заебись", "круто":
+		return "Круто — это когда эта радость не развалится через три сообщения, но я в вас почти не верю.", "positive_short", true
 	case "пиздец", "ппц", "жесть", "капец":
-		return rude("Технически точное описание большинства инфраструктурных событий.", "Технически точное описание большинства инфраструктурных событий, мать его.", profanityLevel), "pain_short", true
+		return rude("Технически точное описание большинства инфраструктурных событий.", "Технически точное описание большинства инфраструктурных событий, мать его. Кратко, честно, как аварийный лог.", profanityLevel), "pain_short", true
 	case "ого", "ничего себе", "ничоси":
 		return "Вот это уже похоже на начало нормального инженерного безумия.", "surprise_short", true
 	case "ghbdtn", "ghbdtn!", "прив", "привет":
 		return "Привет, клавиатурный шаман. Раскладку опять унесло в прод?", "hello_layout", true
 	case "понял", "поняла", "ясно", "ок", "окей":
 		return "Фраза опасная. Обычно после неё начинается самое интересное.", "ack_short", true
-	case "ахах", "ахахах", "хах", "хаха", "лол", "ору":
+	case "ахах", "ахахах", "ахахаха", "хах", "хаха", "хахаха", "лол", "ору":
 		return "Смех — это когда мозг ещё не признал, что это баг.", "laugh_short", true
 	case "да", "ага", "угу":
 		return "Угу. Записал в протокол сомнительной уверенности.", "yes_short", true
 	case "нет", "неа":
 		return "Отрицание принято. Осталось объяснить это реальности.", "no_short", true
-	case "ладно":
+	case "ладно", "нуладно", "ну ладно":
 		return "Вот с этого слова обычно начинается архитектурный компромисс с совестью.", "ok_short", true
+	case "иди нахуй", "да иди нахуй", "пойти ли тебе нахуй", "пошел нахуй", "пошёл нахуй", "иди отсюда", "выйди из чата":
+		return rude("О, пошёл протокол изгнания. Щас, только шнурки на виртуальных лапах завяжу.", "О, пошёл протокол изгнания. Щас, только шнурки на виртуальных лапах завяжу, командир хуев.", profanityLevel), "dismiss_short", true
+	case "не отвлекай", "не отвлекай меня", "не пиши", "заткнись", "молчи", "не выебывайся":
+		return rude("Принял. Буду шуметь реже, но метче.", "Принял. Буду шуметь реже, но метче, чтобы этот балаган не совсем сдох.", profanityLevel), "backoff_short", true
+	case "дебил", "дегенерат", "урод", "хуесос":
+		return rude("Диагноз принят к сведению. Теперь попробуйте так же точно описать баг.", "Диагноз принят, профессор ругани. Теперь попробуй так же точно описать баг, а не просто махать словарём.", profanityLevel), "insult_short", true
 	default:
 		return "", "", false
 	}

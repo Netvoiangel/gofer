@@ -101,6 +101,31 @@ func TestSoftDirectAfterRecentBotMessage(t *testing.T) {
 	}
 }
 
+func TestSoftDirectChatPhrasesFromLiveChat(t *testing.T) {
+	engine, store := newTestEngineWithStore(t)
+	if err := store.AddMessage(storage.MessageRecord{
+		Time:   time.Now().UTC(),
+		ChatID: 10,
+		IsBot:  true,
+		Text:   "предыдущая реплика",
+	}, 50); err != nil {
+		t.Fatalf("add bot message: %v", err)
+	}
+
+	for _, text := range []string{"бля че с ним", "он не хочет отвечать", "не молчи"} {
+		event := engine.Classify(telegram.Message{
+			MessageID: 2,
+			Text:      text,
+			Chat:      telegram.Chat{ID: 10},
+			From:      &telegram.User{ID: 20},
+			Date:      time.Now().Unix(),
+		})
+		if event.Type != EventSoftDirect {
+			t.Fatalf("expected soft direct for %q, got %s", text, event.Type)
+		}
+	}
+}
+
 func TestSoftDirectUsesDirectCooldown(t *testing.T) {
 	engine, store := newTestEngineWithStore(t)
 	settings := testSettings(10)
