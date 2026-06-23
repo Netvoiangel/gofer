@@ -77,6 +77,29 @@ func TestReplyToBotRespondsWhenLimitsAllow(t *testing.T) {
 	}
 }
 
+func TestReplyToBotPushbackSkipsResponse(t *testing.T) {
+	engine := newTestEngine(t)
+	settings := testSettings(10)
+
+	decision := engine.Decide(telegram.Message{
+		MessageID: 1,
+		Text:      "иди нахуй, не отвлекай",
+		Chat:      telegram.Chat{ID: 10},
+		From:      &telegram.User{ID: 20},
+		Date:      time.Now().Unix(),
+		ReplyToMessage: &telegram.Message{
+			From: &telegram.User{ID: 30, IsBot: true},
+		},
+	}, settings)
+
+	if decision.Respond {
+		t.Fatalf("expected pushback reply to skip")
+	}
+	if decision.Reason != "bot_pushback" {
+		t.Fatalf("expected bot_pushback reason, got %s", decision.Reason)
+	}
+}
+
 func TestSoftDirectAfterRecentBotMessage(t *testing.T) {
 	engine, store := newTestEngineWithStore(t)
 	if err := store.AddMessage(storage.MessageRecord{
@@ -362,6 +385,30 @@ func TestTechTopicCooldownCanBeQueued(t *testing.T) {
 	}
 	if decision.CooldownChannel != "ambient_llm" {
 		t.Fatalf("expected ambient_llm channel, got %s", decision.CooldownChannel)
+	}
+}
+
+func TestProactiveSkipsAfterRecentPushback(t *testing.T) {
+	engine, store := newTestEngineWithStore(t)
+	settings := testSettings(10)
+	if err := store.AddMessage(storage.MessageRecord{
+		Time:      time.Now().Add(-4 * time.Hour).UTC(),
+		ChatID:    10,
+		UserID:    20,
+		UserName:  "tester",
+		Text:      "гофер ебнулся, пусть помолчит",
+		MessageID: 1,
+	}, 50); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
+
+	decision := engine.DecideProactive(10, settings)
+
+	if decision.Respond {
+		t.Fatalf("expected proactive to skip after pushback")
+	}
+	if decision.Reason != "recent_pushback" {
+		t.Fatalf("expected recent_pushback reason, got %s", decision.Reason)
 	}
 }
 

@@ -11,6 +11,7 @@ type Candidate struct {
 	Topic   string
 	Trigger string
 	Chance  float64
+	Backoff bool
 }
 
 func Match(text string, chattiness string, profanityLevel string) (Candidate, bool) {
@@ -43,7 +44,7 @@ func CandidateFor(text string, profanityLevel string) (Candidate, bool) {
 		}
 		return Candidate{}, false
 	}
-	return Candidate{Text: reply, Topic: topic, Trigger: normalized}, true
+	return Candidate{Text: reply, Topic: topic, Trigger: normalized, Backoff: isBackoffTopic(topic)}, true
 }
 
 func containedCandidate(text string, profanityLevel string) (Candidate, bool) {
@@ -62,7 +63,7 @@ func containedCandidate(text string, profanityLevel string) (Candidate, bool) {
 		if strings.Contains(text, phrase) {
 			reply, topic, ok := replyFor(phrase, profanityLevel)
 			if ok {
-				return Candidate{Text: reply, Topic: topic, Trigger: phrase}, true
+				return Candidate{Text: reply, Topic: topic, Trigger: phrase, Backoff: isBackoffTopic(topic)}, true
 			}
 		}
 	}
@@ -90,14 +91,18 @@ func replyFor(text string, profanityLevel string) (string, string, bool) {
 	case "ладно", "нуладно", "ну ладно":
 		return "Вот с этого слова обычно начинается архитектурный компромисс с совестью.", "ok_short", true
 	case "иди нахуй", "да иди нахуй", "пойти ли тебе нахуй", "пошел нахуй", "пошёл нахуй", "иди отсюда", "выйди из чата":
-		return rude("О, пошёл протокол изгнания. Щас, только шнурки на виртуальных лапах завяжу.", "О, пошёл протокол изгнания. Щас, только шнурки на виртуальных лапах завяжу, командир хуев.", profanityLevel), "dismiss_short", true
+		return rude("Принял, отхожу от микрофона.", "Принял, отхожу от микрофона. Без ответного цирка.", profanityLevel), "backoff_short", true
 	case "не отвлекай", "не отвлекай меня", "не пиши", "заткнись", "молчи", "не выебывайся":
-		return rude("Принял. Буду шуметь реже, но метче.", "Принял. Буду шуметь реже, но метче, чтобы этот балаган не совсем сдох.", profanityLevel), "backoff_short", true
+		return rude("Принял. Ухожу в тень.", "Принял. Ухожу в тень, без лишнего грохота.", profanityLevel), "backoff_short", true
 	case "дебил", "дегенерат", "урод", "хуесос":
-		return rude("Диагноз принят к сведению. Теперь попробуйте так же точно описать баг.", "Диагноз принят, профессор ругани. Теперь попробуй так же точно описать баг, а не просто махать словарём.", profanityLevel), "insult_short", true
+		return rude("Принял критику формы. Содержательно помолчу.", "Принял критику формы. Содержательно помолчу, а то сейчас опять разнесёт.", profanityLevel), "backoff_short", true
 	default:
 		return "", "", false
 	}
+}
+
+func isBackoffTopic(topic string) bool {
+	return topic == "backoff_short"
 }
 
 func chanceFor(chattiness string) float64 {

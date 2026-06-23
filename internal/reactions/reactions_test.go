@@ -40,8 +40,14 @@ func TestCandidateForDismissiveLongMessage(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected dismissive local reaction")
 	}
-	if candidate.Topic != "dismiss_short" {
-		t.Fatalf("expected dismiss_short topic, got %s", candidate.Topic)
+	if candidate.Topic != "backoff_short" {
+		t.Fatalf("expected backoff_short topic, got %s", candidate.Topic)
+	}
+	if !candidate.Backoff {
+		t.Fatalf("expected dismissive local reaction to trigger backoff")
+	}
+	if strings.Contains(candidate.Text, "командир") {
+		t.Fatalf("expected non-escalating reply, got %q", candidate.Text)
 	}
 }
 

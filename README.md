@@ -1,6 +1,6 @@
 # Telegram-бот «Гофер»
 
-«Гофер» — Telegram-бот для группового чата: отвечает на прямые обращения, иногда реагирует на технические темы, умеет писать редкие инициативные сообщения и держит образ злого, недовольного, матерящегося Go-персонажа.
+«Гофер» — Telegram-бот для группового чата: отвечает на прямые обращения, иногда реагирует на технические темы, умеет писать редкие инициативные сообщения и держит образ ворчливого саркастичного Go-персонажа.
 
 ## Что уже есть
 
@@ -57,29 +57,33 @@ LOG_LEVEL=info
 Рекомендуемый разговорный профиль:
 
 ```env
-BOT_DEFAULT_MODE=angry
+BOT_DEFAULT_MODE=funny
 BOT_DEV_MODE=false
-BOT_CHATTINESS=high
-BOT_PROFANITY_LEVEL=medium
-BOT_MIN_DELAY_SECONDS=35
+BOT_CHATTINESS=medium
+BOT_PROFANITY_LEVEL=low
+BOT_MIN_DELAY_SECONDS=180
 BOT_COMMAND_COOLDOWN_SECONDS=3
-BOT_DIRECT_COOLDOWN_SECONDS=15
-BOT_AMBIENT_LLM_COOLDOWN_SECONDS=45
-BOT_LOCAL_REACTION_COOLDOWN_SECONDS=20
-BOT_PROACTIVE_COOLDOWN_SECONDS=1200
+BOT_DIRECT_COOLDOWN_SECONDS=60
+BOT_AMBIENT_LLM_COOLDOWN_SECONDS=180
+BOT_LOCAL_REACTION_COOLDOWN_SECONDS=120
+BOT_PROACTIVE_COOLDOWN_SECONDS=14400
 BOT_DEBOUNCE_SECONDS=8
 BOT_BATCH_WINDOW_SECONDS=20
 BOT_BATCH_MAX_MESSAGES=5
-BOT_MAX_REPLIES_PER_HOUR=40
-BOT_MAX_PROACTIVE_PER_DAY=8
-PROB_QUESTION=0.75
-PROB_GO_TOPIC=0.85
-PROB_TECH_TOPIC=0.65
-PROB_HUMOR_TRIGGER=0.45
-PROB_SMALL_TALK=0.25
+BOT_MAX_REPLIES_PER_HOUR=12
+BOT_MAX_PROACTIVE_PER_DAY=2
+BOT_PROACTIVE_INTERVAL_SECONDS=1800
+BOT_PROACTIVE_IDLE_AFTER_SECONDS=10800
+PROB_QUESTION=0.55
+PROB_GO_TOPIC=0.60
+PROB_TECH_TOPIC=0.35
+PROB_HUMOR_TRIGGER=0.20
+PROB_SMALL_TALK=0.04
+PROB_PROACTIVE_MIN=0.02
+PROB_PROACTIVE_MAX=0.06
 ```
 
-`BOT_PROFANITY_LEVEL` управляет матом как стилем ругани на баги, деплой, код, легаси и хаос. Бот не должен травить конкретных людей, угрожать или использовать дискриминационные оскорбления.
+`BOT_PROFANITY_LEVEL` управляет матом как стилем ругани на баги, деплой, код, легаси и хаос. Бот не должен травить конкретных людей, угрожать или использовать дискриминационные оскорбления. Если чат явно просит бота заткнуться или обзывает его, Гофер ставит паузу на инициативные сообщения и не пытается выиграть перепалку.
 
 Для теста можно включить максимально разговорный профиль:
 
@@ -87,7 +91,7 @@ PROB_SMALL_TALK=0.25
 BOT_DEV_MODE=true
 ```
 
-Он временно выставляет `BOT_CHATTINESS=insane`, короткие cooldown, debounce `4` сек и лимит `300` ответов в час.
+Он временно выставляет `BOT_CHATTINESS=high`, короткие cooldown, debounce `4` сек и лимит `60` ответов в час.
 
 ## Команды
 
@@ -98,7 +102,7 @@ BOT_DEV_MODE=true
 - `/gopher_mode calm` — спокойный режим.
 - `/gopher_mode funny` — более юмористический режим.
 - `/gopher_mode tech` — технический режим.
-- `/gopher_mode angry` — злой ворчливый режим по умолчанию.
+- `/gopher_mode angry` — более злой ворчливый режим.
 - `/gopher_stats` — статистика сообщений, токенов и срабатываний.
 - `/gopher_budget` — текущие лимиты.
 - `/gopher_reset_context` — очистить краткосрочный контекст.

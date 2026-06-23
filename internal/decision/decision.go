@@ -73,6 +73,9 @@ func (e *Engine) DecideEvent(event Event, settings storage.ChatSettings) Decisio
 	if !settings.Enabled {
 		return Decision{Respond: false, Reason: "bot_disabled", Event: event}
 	}
+	if isBotPushbackText(event.Text) {
+		return Decision{Respond: false, Reason: "bot_pushback", Event: event, CooldownChannel: e.cooldownChannel(event.Type)}
+	}
 	allowed, reason := e.withinLimits(event, settings)
 	if !allowed {
 		return Decision{Respond: false, Reason: reason, Event: event, CooldownChannel: e.cooldownChannel(event.Type), RemainingSeconds: e.remainingCooldown(event, settings)}
@@ -199,6 +202,9 @@ func (e *Engine) DecideProactive(chatID int64, settings storage.ChatSettings) De
 	if lastMessage.IsZero() || time.Since(lastMessage) < e.cfg.ProactiveIdleAfter {
 		return Decision{Respond: false, Reason: "chat_not_idle", Event: event}
 	}
+	if e.recentBotPushback(chatID) {
+		return Decision{Respond: false, Reason: "recent_pushback", Event: event}
+	}
 	allowed, reason := e.withinProactiveLimits(chatID, settings)
 	if !allowed {
 		return Decision{Respond: false, Reason: reason, Event: event}
@@ -216,6 +222,49 @@ func (e *Engine) DecideProactive(chatID int64, settings storage.ChatSettings) De
 		return Decision{Respond: true, Reason: "idle_probability_passed", Event: event, Probability: probability}
 	}
 	return Decision{Respond: false, Reason: "idle_probability_skipped", Event: event, Probability: probability}
+}
+
+func (e *Engine) recentBotPushback(chatID int64) bool {
+	messages := e.store.RecentMessages(chatID, 8)
+	for i := len(messages) - 1; i >= 0; i-- {
+		message := messages[i]
+		if message.IsBot {
+			continue
+		}
+		text := strings.ToLower(message.Text)
+		if isBotPushbackText(text) || containsAny(text, []string{
+			"гофер стал",
+			"он заебал",
+			"бесит",
+			"уебище",
+			"дегенерат",
+			"дебил",
+		}) {
+			return true
+		}
+	}
+	return false
+}
+
+func isBotPushbackText(text string) bool {
+	return containsAny(strings.ToLower(text), []string{
+		"гофер ебнулся",
+		"гофер ебанулся",
+		"бот ебнулся",
+		"бот ебанулся",
+		"он ебнулся",
+		"он ебанулся",
+		"ты заебал",
+		"заебал пиздеть",
+		"иди нахуй",
+		"пошел нахуй",
+		"пошёл нахуй",
+		"заткнись",
+		"не пиши",
+		"не отвлекай",
+		"не выебывайся",
+		"сдохни",
+	})
 }
 
 func (e *Engine) withinLimits(event Event, settings storage.ChatSettings) (bool, string) {

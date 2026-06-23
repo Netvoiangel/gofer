@@ -375,6 +375,9 @@ func (a *app) tryLocalReaction(ctx context.Context, message telegram.Message, ev
 	if !ok {
 		return false
 	}
+	if candidate.Backoff {
+		a.pauseProactive(message.Chat.ID, time.Hour)
+	}
 
 	allowed, reason := a.decider.CanLocalReact(message.Chat.ID, settings)
 	if !allowed {
@@ -413,6 +416,16 @@ func (a *app) tryLocalReaction(ctx context.Context, message telegram.Message, ev
 	_ = a.store.LogEvent(eventLog)
 	a.logger.Info("local reaction sent", "chat_id", message.Chat.ID, "event", decision.EventLocalReaction, "topic", candidate.Topic, "trigger", candidate.Trigger, "chance", candidate.Chance, "llm_used", false)
 	return true
+}
+
+func (a *app) pauseProactive(chatID int64, duration time.Duration) {
+	until := time.Now().Add(duration)
+	_ = a.store.UpdateSettings(chatID, func(settings *storage.ChatSettings) {
+		if settings.SilentUntil.Before(until) {
+			settings.SilentUntil = until
+		}
+	})
+	a.logger.Info("proactive paused after pushback", "chat_id", chatID, "duration_seconds", int(duration.Seconds()))
 }
 
 func (a *app) runProactive(ctx context.Context) {

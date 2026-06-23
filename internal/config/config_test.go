@@ -15,16 +15,16 @@ func TestDevModeOverridesRuntimeValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.Bot.Chattiness != "insane" {
-		t.Fatalf("expected insane chattiness, got %s", cfg.Bot.Chattiness)
+	if cfg.Bot.Chattiness != "high" {
+		t.Fatalf("expected high chattiness, got %s", cfg.Bot.Chattiness)
 	}
-	if cfg.Bot.DirectCooldown != 3*time.Second {
-		t.Fatalf("expected 3s direct cooldown, got %s", cfg.Bot.DirectCooldown)
+	if cfg.Bot.DirectCooldown != 10*time.Second {
+		t.Fatalf("expected 10s direct cooldown, got %s", cfg.Bot.DirectCooldown)
 	}
-	if cfg.Bot.AmbientCooldown != 8*time.Second {
-		t.Fatalf("expected 8s ambient cooldown, got %s", cfg.Bot.AmbientCooldown)
+	if cfg.Bot.AmbientCooldown != 20*time.Second {
+		t.Fatalf("expected 20s ambient cooldown, got %s", cfg.Bot.AmbientCooldown)
 	}
-	if cfg.Bot.MaxRepliesPerHour != 300 {
-		t.Fatalf("expected 300 hourly replies, got %d", cfg.Bot.MaxRepliesPerHour)
+	if cfg.Bot.MaxRepliesPerHour != 60 {
+		t.Fatalf("expected 60 hourly replies, got %d", cfg.Bot.MaxRepliesPerHour)
 	}
 }
